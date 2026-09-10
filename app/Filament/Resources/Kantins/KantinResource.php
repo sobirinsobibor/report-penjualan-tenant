@@ -33,7 +33,22 @@ class KantinResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return auth()->user()?->hasAbility('kantin.view_any') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAbility('kantin.create') ?? false;
+    }
+
+    public static function canEdit(mixed $record): bool
+    {
+        return auth()->user()?->hasAbility('kantin.update') ?? false;
+    }
+
+    public static function canDelete(mixed $record): bool
+    {
+        return auth()->user()?->hasAbility('kantin.delete') ?? false;
     }
 
     public static function form(Schema $schema): Schema

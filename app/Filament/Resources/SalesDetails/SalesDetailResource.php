@@ -36,6 +36,12 @@ class SalesDetailResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasAbility('sales.view_all') || $user->hasAbility('sales.view_own'));
+    }
+
     public static function canCreate(): bool
     {
         return false;
@@ -48,7 +54,7 @@ class SalesDetailResource extends Resource
 
     public static function canDelete(mixed $record): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return auth()->user()?->hasAbility('sales.delete') ?? false;
     }
 
     public static function getEloquentQuery(): Builder
@@ -58,7 +64,7 @@ class SalesDetailResource extends Resource
             ->latest('id');
 
         $user = auth()->user();
-        if ($user && $user->isTenant()) {
+        if ($user && !$user->hasAbility('sales.view_all')) {
             $query->where('tenant_id', $user->tenant_id ?? 0);
         }
 
@@ -72,7 +78,8 @@ class SalesDetailResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $isAdmin = auth()->user()?->isAdmin() ?? false;
+        $canViewAll = auth()->user()?->hasAbility('sales.view_all') ?? false;
+        $canDelete = auth()->user()?->hasAbility('sales.delete') ?? false;
 
         return $table
             ->columns([
@@ -82,7 +89,7 @@ class SalesDetailResource extends Resource
                     ->color('primary')
                     ->searchable()
                     ->sortable()
-                    ->visible($isAdmin),
+                    ->visible($canViewAll),
                 TextColumn::make('salesImport.period_raw')
                     ->label('Periode')
                     ->searchable()
@@ -92,7 +99,7 @@ class SalesDetailResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
-                    ->visible($isAdmin),
+                    ->visible($canViewAll),
                 TextColumn::make('item_name')
                     ->label('Menu / Item')
                     ->searchable()
@@ -147,12 +154,12 @@ class SalesDetailResource extends Resource
                             });
                         }
                     })
-                    ->visible($isAdmin),
+                    ->visible($canViewAll),
                 SelectFilter::make('tenant_id')
                     ->label('Filter Tenant')
                     ->options(fn () => Tenant::pluck('name', 'id')->toArray())
                     ->searchable()
-                    ->visible($isAdmin),
+                    ->visible($canViewAll),
                 Filter::make('period_date')
                     ->form([
                         DatePicker::make('from')->label('Dari Tanggal'),
@@ -171,11 +178,11 @@ class SalesDetailResource extends Resource
                     }),
             ])
             ->recordActions([
-                DeleteAction::make()->visible($isAdmin),
+                DeleteAction::make()->visible($canDelete),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make()->visible($isAdmin),
+                    DeleteBulkAction::make()->visible($canDelete),
                 ]),
             ]);
     }

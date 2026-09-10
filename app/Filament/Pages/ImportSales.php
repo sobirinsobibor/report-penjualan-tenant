@@ -33,7 +33,7 @@ class ImportSales extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return auth()->user()?->hasAbility('sales.import') ?? false;
     }
 
     public function import(): void

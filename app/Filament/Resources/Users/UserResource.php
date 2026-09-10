@@ -38,7 +38,22 @@ class UserResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return auth()->user()?->hasAbility('user.view_any') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAbility('user.create') ?? false;
+    }
+
+    public static function canEdit(mixed $record): bool
+    {
+        return auth()->user()?->hasAbility('user.update') ?? false;
+    }
+
+    public static function canDelete(mixed $record): bool
+    {
+        return auth()->user()?->hasAbility('user.delete') ?? false;
     }
 
     public static function form(Schema $schema): Schema
@@ -62,23 +77,34 @@ class UserResource extends Resource
                     ->required(fn (string $operation): bool => $operation === 'create')
                     ->default('password')
                     ->helperText('Password default: password'),
-                Select::make('role')
-                    ->label('Role Akses')
-                    ->options([
-                        'superadmin' => 'Superadmin',
-                        'admin' => 'Admin',
-                        'tenant' => 'Tenant',
-                    ])
-                    ->default('tenant')
+                Select::make('role_id')
+                    ->label('Role Akses (RBAC)')
+                    ->relationship('roleModel', 'display_name')
+                    ->preload()
+                    ->searchable()
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->afterStateUpdated(function ($state, $set) {
+                        $r = \App\Models\Role::find($state);
+                        if ($r) {
+                            $set('role', $r->name);
+                        }
+                    }),
                 Select::make('tenant_id')
                     ->label('Tautkan ke Tenant')
                     ->relationship('tenant', 'name')
                     ->searchable()
                     ->preload()
-                    ->visible(fn ($get) => $get('role') === 'tenant')
-                    ->required(fn ($get) => $get('role') === 'tenant')
+                    ->visible(function ($get) {
+                        $roleId = $get('role_id');
+                        $r = $roleId ? \App\Models\Role::find($roleId) : null;
+                        return ($r?->name === 'tenant') || ($get('role') === 'tenant');
+                    })
+                    ->required(function ($get) {
+                        $roleId = $get('role_id');
+                        $r = $roleId ? \App\Models\Role::find($roleId) : null;
+                        return ($r?->name === 'tenant') || ($get('role') === 'tenant');
+                    })
                     ->helperText('Wajib dipilih jika role adalah Tenant'),
             ]);
     }
@@ -96,15 +122,17 @@ class UserResource extends Resource
                     ->label('Email')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('role')
-                    ->label('Role')
+                TextColumn::make('roleModel.display_name')
+                    ->label('Role (RBAC)')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn ($record): string => match ($record?->getRoleName()) {
                         'superadmin' => 'danger',
                         'admin' => 'warning',
                         'tenant' => 'success',
                         default => 'gray',
-                    }),
+                    })
+                    ->placeholder(fn ($record) => ucfirst($record->role ?? 'Tenant'))
+                    ->sortable(),
                 TextColumn::make('tenant.name')
                     ->label('Tenant Tertaut')
                     ->placeholder('-')
@@ -117,18 +145,16 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('role')
-                    ->options([
-                        'superadmin' => 'Superadmin',
-                        'admin' => 'Admin',
-                        'tenant' => 'Tenant',
-                    ]),
+                SelectFilter::make('role_id')
+                    ->label('Filter Role')
+                    ->relationship('roleModel', 'display_name'),
             ])
             ->recordActions([
                 Action::make('resetPassword')
                     ->label('Reset Pwd')
                     ->icon(Heroicon::OutlinedKey)
                     ->color('warning')
+                    ->visible(fn () => auth()->user()?->hasAbility('user.reset_password') ?? false)
                     ->requiresConfirmation()
                     ->modalHeading('Reset Password')
                     ->modalDescription('Apakah Anda yakin ingin mereset password akun ini ke default (password)?')
