@@ -1,67 +1,53 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Analisis Sistem: Web Reporting Penjualan Tenant
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 1. Deskripsi Umum
+Sistem **Web Reporting Penjualan Tenant** adalah sebuah platform berbasis web yang berfungsi untuk mengolah dan menyajikan laporan penjualan tenant yang beroperasi di berbagai kantin. Data penjualan tidak diinput secara manual, melainkan diimpor dari hasil *export* sistem ESB (Sales Menu Recapitulation Report). Sistem ini mengedepankan keamanan akses melalui Role-Based Access Control (RBAC).
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 2. Hak Akses (Role-Based Access Control / RBAC)
+Sistem memiliki 3 role utama dengan batasan akses yang ketat:
+*   **Superadmin / Admin:** Memiliki akses penuh terhadap manajemen data master, proses import Excel, manajemen akun, dan dapat melihat laporan penjualan seluruh tenant di semua kantin.
+*   **Tenant:** Hanya dapat mengakses halaman dashboard dan laporan penjualan. Data yang ditampilkan dikunci secara otomatis (`tenant_id`) sehingga tenant hanya bisa melihat data penjualan miliknya sendiri.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 3. Modul & Fitur Utama
 
-## Learning Laravel
+### A. Modul Autentikasi & Akun
+*   **Login & Logout:** Autentikasi menggunakan kombinasi email/username dan password.
+*   **Manajemen Akun:** Tidak ada fitur pendaftaran mandiri (*self-registration*). Pembuatan akun sepenuhnya dilakukan oleh Admin.
+*   **Reset Password:** Tidak ada fitur lupa password via email. Reset password dikembalikan ke *default* dan hanya bisa dilakukan oleh Admin.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### B. Modul Manajemen Data Master
+*   **CRUD Akun User:** Admin dapat membuat akun, mengatur role (Superadmin, Admin, Tenant), mengatur password default, dan menautkan akun tenant ke data tenant terkait.
+*   **CRUD Kantin:** Manajemen data Kantin (Branch). Data ini juga dapat terbuat secara otomatis saat proses import.
+*   **CRUD Tenant:** Manajemen penyewa (berdasarkan Menu Category) yang terhubung dengan Kantin. Data ini juga dapat terbuat otomatis saat import.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### C. Modul Import Data Penjualan (Core Process)
+*   **Upload Excel ESB:** Modul untuk mengunggah file *Sales Menu Recapitulation Report*.
+*   **Parsing Metadata:** Membaca informasi *Branch* (Kantin) dan *Period* langsung dari *header* / metadata file Excel.
+*   **Validasi Duplikasi:** Mencegah sistem menyimpan data ganda jika kombinasi Kantin dan Periode yang sama diunggah ulang.
+*   **Auto-Match / Auto-Create:** 
+    *   Mencocokkan *Branch* di Excel ke Kantin di database (jika belum ada, otomatis dibuat).
+    *   Mencocokkan *Menu Category* di Excel ke Tenant di database (jika belum ada, otomatis dibuat).
+*   **Simpan Transaksi:** Menyimpan seluruh data per baris Excel ke dalam tabel Detail Penjualan.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### D. Modul Laporan Penjualan
+*   **Dashboard Total Penjualan Tenant:** Menampilkan akumulasi total pendapatan (*SUM Grand Total*) untuk masing-masing tenant.
+*   **Filter Periode:** Opsi untuk menyaring laporan berdasarkan rentang tanggal tertentu.
+*   **Laporan Global (Khusus Admin):** Akses untuk melihat seluruh transaksi dari semua kantin dan tenant tanpa batasan filter identitas.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-"# report-penjualan-tenant" 
+## 4. Alur Kerja (Workflow) Import Data
+1. **Admin** mengunggah file Excel hasil *export* ESB.
+2. **Sistem** mengekstrak metadata dari file untuk mendeteksi `Branch` (Kantin) dan `Period`.
+3. **Sistem** melakukan pengecekan di *database*: *Apakah file untuk Kantin dan Periode ini sudah pernah diunggah?*
+    *   Jika **Ya**: Proses dibatalkan (Validasi duplikasi).
+    *   Jika **Tidak**: Lanjut ke tahap berikutnya.
+4. **Sistem** mencocokkan master data:
+    *   Jika nama *Branch* tidak ada di sistem, otomatis buat data Kantin baru.
+    *   Jika nama *Menu Category* tidak ada di sistem, otomatis buat data Tenant baru.
+5. **Sistem** memproses isi Excel baris demi baris dan menyimpannya ke tabel *Transaksi Detail Penjualan*.
+6. Data siap disajikan di Dashboard Laporan sesuai dengan hak akses (Role) yang sedang login.
