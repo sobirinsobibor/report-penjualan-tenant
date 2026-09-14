@@ -123,4 +123,15 @@ class SystemRbacAndReportTest extends TestCase
         $response->assertSee('Paket Geprek Original Level 3');
         $response->assertDontSee('Kopi Kenangan Mantan R');
     }
+
+    public function test_import_sales_page_renders_cleanly(): void
+    {
+        $this->actingAs($this->admin);
+
+        \Livewire\Livewire::test(\App\Filament\Pages\ImportSales::class)
+            ->assertSuccessful()
+            ->assertSee('Upload Rekapitulasi Penjualan (ESB)')
+            ->assertSee('Ketentuan Format File ESB')
+            ->assertSee('Riwayat Batch Import');
+    }
 }

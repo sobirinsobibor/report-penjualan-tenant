@@ -1,166 +1,127 @@
 <x-filament-panels::page>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         <!-- Form Upload -->
-        <div class="md:col-span-2 space-y-6">
-            <div class="p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                    <x-filament::icon icon="heroicon-o-arrow-up-tray" class="w-5 h-5 text-primary-500" />
-                    Upload File Sales Recapitulation Report (.xlsx / .csv)
-                </h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                    Unggah file hasil export sistem ESB. Sistem akan otomatis mendeteksi Kantin dan Periode, memeriksa duplikasi, serta mencocokkan data tenant.
-                </p>
+        <div class="lg:col-span-2 flex flex-col gap-6">
+            <x-filament::section
+                icon="heroicon-o-cloud-arrow-up"
+                heading="Upload File Penjualan (ESB Excel)"
+                description="Silakan pilih atau tarik (drag & drop) file .xlsx, .xls, atau .csv ke area di bawah ini."
+            >
+                <form wire:submit="import" class="space-y-6">
+                    
+                    {{ $this->form }}
 
-                <form wire:submit.prevent="import" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Pilih File Excel / CSV
-                        </label>
-                        <input 
-                            type="file" 
-                            wire:model="file" 
-                            accept=".xlsx,.xls,.csv"
-                            class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-850 dark:border-gray-700 p-2.5"
-                        />
-                        @error('file')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
-                        @enderror
-                        <div wire:loading wire:target="file" class="mt-2 text-xs text-primary-600 dark:text-primary-400 font-medium">
-                            Mengunggah file ke browser... mohon tunggu...
-                        </div>
-                    </div>
-
-                    <div class="pt-2 flex items-center justify-between">
-                        <x-filament::button type="submit" wire:loading.attr="disabled" wire:target="import,file">
-                            <span wire:loading.remove wire:target="import">Mulai Proses Import</span>
-                            <span wire:loading wire:target="import">Memproses Data Excel...</span>
+                    <div class="flex items-center justify-end">
+                        <x-filament::button 
+                            type="submit" 
+                            wire:loading.attr="disabled" 
+                            wire:target="import"
+                            icon="heroicon-m-play"
+                        >
+                            <span wire:loading.remove wire:target="import">Proses File Sekarang</span>
+                            <span wire:loading wire:target="import">Memproses Data...</span>
                         </x-filament::button>
-
-                        <a href="{{ route('filament.dashboard.resources.sales-details.index') }}" class="text-sm text-primary-600 hover:underline">
-                            Lihat Laporan Penjualan &rarr;
-                        </a>
                     </div>
                 </form>
-            </div>
+            </x-filament::section>
 
+            <!-- Hasil Import Terakhir -->
             @if($importResult)
-                <div class="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-                    <div class="flex items-center gap-3 text-emerald-800 dark:text-emerald-300 font-semibold mb-3">
-                        <x-filament::icon icon="heroicon-o-check-circle" class="w-6 h-6" />
-                        Hasil Import Terakhir Berhasil
+                <x-filament::section 
+                    icon="heroicon-o-check-circle" 
+                    icon-color="success"
+                    heading="Import Berhasil Diproses"
+                    description="Seluruh baris transaksi dari file excel telah berhasil diverifikasi dan disimpan."
+                >
+                    <x-slot name="headerEnd">
+                        <x-filament::icon-button 
+                            icon="heroicon-m-x-mark" 
+                            color="gray" 
+                            label="Tutup"
+                            wire:click="$set('importResult', null)"
+                        />
+                    </x-slot>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Kantin</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white truncate" title="{{ $importResult['kantin'] }}">{{ $importResult['kantin'] }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Periode</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $importResult['period'] }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Total Baris</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ number_format($importResult['total_rows']) }}</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-success-50 dark:bg-success-500/10 border border-success-200 dark:border-success-500/20">
+                            <p class="text-xs font-medium text-success-600 dark:text-success-400">Total Omzet</p>
+                            <p class="mt-1 text-sm font-semibold text-success-600 dark:text-success-400 truncate">Rp {{ number_format($importResult['total_amount'], 0, ',', '.') }}</p>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                        <div class="bg-white/70 dark:bg-gray-900/70 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900">
-                            <span class="text-xs text-gray-500 block">Kantin</span>
-                            <span class="font-bold text-gray-900 dark:text-white">{{ $importResult['kantin'] }}</span>
-                        </div>
-                        <div class="bg-white/70 dark:bg-gray-900/70 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900">
-                            <span class="text-xs text-gray-500 block">Periode</span>
-                            <span class="font-bold text-gray-900 dark:text-white">{{ $importResult['period'] }}</span>
-                        </div>
-                        <div class="bg-white/70 dark:bg-gray-900/70 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900">
-                            <span class="text-xs text-gray-500 block">Total Baris</span>
-                            <span class="font-bold text-gray-900 dark:text-white">{{ number_format($importResult['total_rows']) }} item</span>
-                        </div>
-                        <div class="bg-white/70 dark:bg-gray-900/70 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900">
-                            <span class="text-xs text-gray-500 block">Total Omzet</span>
-                            <span class="font-bold text-emerald-600 dark:text-emerald-400">Rp {{ number_format($importResult['total_amount'], 0, ',', '.') }}</span>
-                        </div>
+
+                    <div class="mt-4 flex justify-end">
+                        <x-filament::button 
+                            tag="a" 
+                            href="{{ route('filament.dashboard.resources.sales-details.index') }}" 
+                            color="gray"
+                            icon="heroicon-m-arrow-right"
+                            icon-position="after"
+                        >
+                            Lihat Laporan Penjualan
+                        </x-filament::button>
                     </div>
-                </div>
+                </x-filament::section>
             @endif
         </div>
 
-        <!-- Info & Petunjuk Format ESB -->
-        <div class="space-y-4">
-            <div class="p-6 bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-800 rounded-xl">
-                <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <x-filament::icon icon="heroicon-o-information-circle" class="w-5 h-5 text-blue-500" />
-                    Ketentuan Format File ESB
-                </h4>
-                <ul class="text-xs text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside">
-                    <li><strong>Metadata Header:</strong> Berisi informasi <code>Branch: [Nama Kantin]</code> dan <code>Period: [Rentang Tanggal]</code> pada 10 baris pertama.</li>
-                    <li><strong>Validasi Anti-Duplikasi:</strong> Jika kombinasi Kantin & Periode yang sama diupload ulang, sistem otomatis menolaknya.</li>
-                    <li><strong>Kolom Tabel:</strong> Harus memuat minimal kolom:
-                        <ul class="pl-4 pt-1 space-y-1 list-circle">
-                            <li><code>Menu Category</code> (Nama Tenant)</li>
-                            <li><code>Item Name</code> (Nama Produk/Menu)</li>
-                            <li><code>Sales Qty</code> (Kuantitas)</li>
-                            <li><code>Grand Total</code> (Total Penjualan)</li>
-                        </ul>
-                    </li>
-                    <li><strong>Auto-Creation:</strong> Kantin & Tenant baru akan dibuat otomatis saat import jika belum terdaftar di database.</li>
-                </ul>
-            </div>
+        <!-- Ketentuan Format -->
+        <div class="lg:col-span-1">
+            <x-filament::section
+                icon="heroicon-o-information-circle"
+                icon-color="info"
+                heading="Ketentuan Format File"
+            >
+                <div class="fi-prose prose prose-sm dark:prose-invert max-w-none">
+                    <p>
+                        Panduan struktur file Excel (ESB) agar bisa diproses oleh sistem:
+                    </p>
+                    <ol>
+                        <li>
+                            <strong>Header Metadata</strong><br>
+                            Sistem akan mendeteksi lokasi kantin dan periode pada 10 baris pertama. Pastikan format penulisan ini ada:
+                            <ul>
+                                <li><code>Branch: [Nama Kantin]</code></li>
+                                <li><code>Period: [Rentang Waktu]</code></li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Kolom Wajib Tabel</strong><br>
+                            Judul kolom pada tabel wajib sama persis (huruf besar/kecil berpengaruh) dengan ini:
+                            <ul>
+                                <li><code>Menu Category</code></li>
+                                <li><code>Item Name</code></li>
+                                <li><code>Sales Qty</code></li>
+                                <li><code>Grand Total</code></li>
+                            </ul>
+                            <em>Catatan: Nilai pada kolom <strong>Menu Category</strong> akan otomatis digunakan sistem sebagai nama Tenant.</em>
+                        </li>
+                        <li>
+                            <strong>Anti-Duplikasi & Sinkronisasi</strong><br>
+                            <ul>
+                                <li>Sistem menolak import jika <strong>Kantin</strong> dan <strong>Periode</strong>-nya sudah pernah sukses diproses sebelumnya.</li>
+                                <li>Kantin & Tenant yang baru (belum ada di database) akan <strong>otomatis dibuat</strong> oleh sistem.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+            </x-filament::section>
         </div>
     </div>
 
-    <!-- Riwayat Import -->
-    <div class="mt-8">
-        <h3 class="text-base font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <x-filament::icon icon="heroicon-o-clock" class="w-5 h-5 text-gray-500" />
-            Riwayat Batch Import Terakhir
-        </h3>
-
-        <div class="overflow-x-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm">
-            <table class="w-full text-sm text-left text-gray-600 dark:text-gray-300">
-                <thead class="text-xs text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-800">
-                    <tr>
-                        <th class="px-4 py-3">Kantin (Branch)</th>
-                        <th class="px-4 py-3">Periode</th>
-                        <th class="px-4 py-3 text-right">Baris Data</th>
-                        <th class="px-4 py-3 text-right">Total Pendapatan</th>
-                        <th class="px-4 py-3">Nama File</th>
-                        <th class="px-4 py-3">Diupload Oleh</th>
-                        <th class="px-4 py-3">Waktu</th>
-                        <th class="px-4 py-3 text-center">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                    @forelse($recentImports as $import)
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                            <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
-                                {{ $import->kantin?->name }}
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800">
-                                    {{ $import->period_raw }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                {{ number_format($import->total_rows) }}
-                            </td>
-                            <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
-                                Rp {{ number_format($import->total_amount, 0, ',', '.') }}
-                            </td>
-                            <td class="px-4 py-3 text-xs text-gray-500 truncate max-w-xs" title="{{ $import->file_name }}">
-                                {{ $import->file_name }}
-                            </td>
-                            <td class="px-4 py-3 text-xs">
-                                {{ $import->uploader?->name ?? 'System' }}
-                            </td>
-                            <td class="px-4 py-3 text-xs text-gray-500">
-                                {{ $import->created_at->format('d/m/Y H:i') }}
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <button 
-                                    wire:click="deleteImport({{ $import->id }})"
-                                    wire:confirm="Yakin ingin menghapus seluruh data penjualan dari batch import ini? Tindakan ini tidak dapat dibatalkan."
-                                    class="text-xs text-red-600 hover:text-red-800 dark:hover:text-red-400 font-medium cursor-pointer"
-                                >
-                                    Hapus
-                                </button>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="px-4 py-8 text-center text-gray-400 text-sm">
-                                Belum ada data import penjualan yang tersimpan.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+    <div class="mt-6">
+        {{ $this->table }}
     </div>
 </x-filament-panels::page>
