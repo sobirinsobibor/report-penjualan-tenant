@@ -139,7 +139,7 @@ class ImportSales extends Page implements HasTable, HasForms
         $isAdmin = auth()->user()?->isAdmin() ?? false;
 
         return $table
-            ->query(SalesImport::query()->with(['kantin', 'uploader'])->latest())
+            ->query(SalesImport::query()->with(['kantin', 'uploader', 'salesDetails.tenant'])->latest())
             ->heading('Riwayat Batch Import')
             ->description('Daftar file rekapitulasi penjualan ESB yang telah berhasil diimpor ke sistem.')
             ->columns([
@@ -166,6 +166,57 @@ class ImportSales extends Page implements HasTable, HasForms
                     ->alignEnd()
                     ->sortable()
                     ->weight('bold'),
+                TextColumn::make('tenant_fees')
+                    ->label('Tenant & Fee')
+                    ->state(function (SalesImport $record): string {
+                        return $record->salesDetails->groupBy('tenant_id')->map(function ($details) {
+                            $tenant = $details->first()->tenant;
+                            $name = $tenant?->name ?? 'Unknown';
+                            $fee = $tenant ? number_format((float)$tenant->fee_percentage, 2) : '0.00';
+                            $subtotal = $details->sum('grand_total');
+                            $feeAmount = $subtotal * (float)($tenant?->fee_percentage ?? 0) / 100;
+                            return "{$name} ({$fee}%) = Rp " . number_format($feeAmount, 0, ',', '.');
+                        })->implode("\n");
+                    })
+                    ->wrap()
+                    ->lineClamp(3)
+                    ->tooltip(function (SalesImport $record): string {
+                        return $record->salesDetails->groupBy('tenant_id')->map(function ($details) {
+                            $tenant = $details->first()->tenant;
+                            $name = $tenant?->name ?? 'Unknown';
+                            $fee = number_format((float)($tenant?->fee_percentage ?? 0), 2);
+                            $subtotal = $details->sum('grand_total');
+                            $feeAmount = $subtotal * (float)($tenant?->fee_percentage ?? 0) / 100;
+                            return "{$name}: Fee {$fee}% = Rp " . number_format($feeAmount, 0, ',', '.');
+                        })->implode(' | ');
+                    }),
+                TextColumn::make('total_fee')
+                    ->label('Total Potongan Fee')
+                    ->state(function (SalesImport $record): float {
+                        return $record->salesDetails->groupBy('tenant_id')->sum(function ($details) {
+                            $tenant = $details->first()->tenant;
+                            $fee = $tenant ? (float)$tenant->fee_percentage : 0;
+                            $subtotal = $details->sum('grand_total');
+                            return $subtotal * $fee / 100;
+                        });
+                    })
+                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float)$state, 0, ',', '.'))
+                    ->alignEnd()
+                    ->color('danger'),
+                TextColumn::make('total_after_fee')
+                    ->label('Total Setelah Fee')
+                    ->state(function (SalesImport $record): float {
+                        return $record->salesDetails->groupBy('tenant_id')->sum(function ($details) {
+                            $tenant = $details->first()->tenant;
+                            $fee = $tenant ? (float)$tenant->fee_percentage : 0;
+                            $subtotal = $details->sum('grand_total');
+                            return $subtotal * (1 - $fee / 100);
+                        });
+                    })
+                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float)$state, 0, ',', '.'))
+                    ->alignEnd()
+                    ->weight('bold')
+                    ->color('success'),
                 TextColumn::make('file_name')
                     ->label('Nama File')
                     ->icon(Heroicon::OutlinedDocumentText)

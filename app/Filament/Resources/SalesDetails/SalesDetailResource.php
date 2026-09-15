@@ -18,6 +18,7 @@ use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
@@ -61,7 +62,13 @@ class SalesDetailResource extends Resource
     {
         $query = parent::getEloquentQuery()
             ->with(['salesImport.kantin', 'tenant'])
-            ->latest('id');
+            ->join('sales_imports', 'sales_details.sales_import_id', '=', 'sales_imports.id')
+            ->join('kantins', 'sales_imports.kantin_id', '=', 'kantins.id')
+            ->leftJoin('tenants', 'sales_details.tenant_id', '=', 'tenants.id')
+            ->orderBy('kantins.name')
+            ->orderBy('tenants.name')
+            ->orderByDesc('sales_details.id')
+            ->selectRaw("sales_details.*, (kantins.name || ' → ' || COALESCE(tenants.name, 'Unknown')) as kantin_tenant");
 
         $user = auth()->user();
         if ($user && !$user->hasAbility('sales.view_all')) {
@@ -82,6 +89,18 @@ class SalesDetailResource extends Resource
         $canDelete = auth()->user()?->hasAbility('sales.delete') ?? false;
 
         return $table
+            ->groups([
+                Group::make('kantin_tenant')
+                    ->label('Group')
+                    ->collapsible(),
+                Group::make('salesImport.kantin.name')
+                    ->label('Kantin')
+                    ->collapsible(),
+                Group::make('tenant.name')
+                    ->label('Tenant')
+                    ->collapsible(),
+            ])
+            ->defaultGroup('kantin_tenant')
             ->columns([
                 TextColumn::make('salesImport.kantin.name')
                     ->label('Kantin')
@@ -137,6 +156,30 @@ class SalesDetailResource extends Resource
                             ->label('Total Omzet')
                             ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float)$state, 0, ',', '.'))
                     ),
+                TextColumn::make('tenant.fee_percentage')
+                    ->label('Fee (%)')
+                    ->formatStateUsing(fn ($state) => number_format((float)$state, 2) . '%')
+                    ->alignEnd()
+                    ->color('warning'),
+                TextColumn::make('fee_amount')
+                    ->label('Potongan Fee')
+                    ->state(function (SalesDetail $record): float {
+                        $fee = $record->tenant?->fee_percentage ?? 0;
+                        return (float)$record->grand_total * (float)$fee / 100;
+                    })
+                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float)$state, 0, ',', '.'))
+                    ->alignEnd()
+                    ->color('danger'),
+                TextColumn::make('after_fee')
+                    ->label('Setelah Fee')
+                    ->state(function (SalesDetail $record): float {
+                        $fee = $record->tenant?->fee_percentage ?? 0;
+                        return (float)$record->grand_total * (1 - (float)$fee / 100);
+                    })
+                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float)$state, 0, ',', '.'))
+                    ->alignEnd()
+                    ->weight('bold')
+                    ->color('success'),
                 TextColumn::make('created_at')
                     ->label('Waktu Upload')
                     ->dateTime('d M Y H:i')

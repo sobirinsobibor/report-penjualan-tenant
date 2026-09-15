@@ -14,6 +14,11 @@ class Tenant extends Model
     protected $fillable = [
         'kantin_id',
         'name',
+        'fee_percentage',
+    ];
+
+    protected $casts = [
+        'fee_percentage' => 'decimal:2',
     ];
 
     public function kantin(): BelongsTo

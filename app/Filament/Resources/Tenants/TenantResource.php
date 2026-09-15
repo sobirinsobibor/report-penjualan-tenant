@@ -68,6 +68,15 @@ class TenantResource extends Resource
                     ->placeholder('Misal: Ayam Geprek Bu Sri, Kopi Kenangan')
                     ->required()
                     ->maxLength(255),
+                TextInput::make('fee_percentage')
+                    ->label('Fee (%)')
+                    ->numeric()
+                    ->default(0)
+                    ->minValue(0)
+                    ->maxValue(100)
+                    ->step(0.01)
+                    ->suffix('%')
+                    ->helperText('Persentase potongan dari total omzet tenant'),
             ]);
     }
 
@@ -86,6 +95,10 @@ class TenantResource extends Resource
                     ->sortable()
                     ->badge()
                     ->color('info'),
+                TextColumn::make('fee_percentage')
+                    ->label('Fee')
+                    ->formatStateUsing(fn ($state) => number_format((float)$state, 2) . '%')
+                    ->sortable(),
                 TextColumn::make('users_count')
                     ->counts('users')
                     ->label('Akun Tertaut')
