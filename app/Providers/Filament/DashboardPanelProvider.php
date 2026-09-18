@@ -28,7 +28,7 @@ class DashboardPanelProvider extends PanelProvider
             ->id('dashboard')
             ->path('dashboard')
             ->login()
-            ->brandName('Reporting Penjualan Tenant')
+            ->brandName('Reporting Penjualan Tenant EDIT')
             ->colors([
                 'primary' => Color::Amber,
             ])
