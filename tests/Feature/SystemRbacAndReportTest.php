@@ -124,6 +124,20 @@ class SystemRbacAndReportTest extends TestCase
         $response->assertDontSee('Kopi Kenangan Mantan R');
     }
 
+    public function test_admin_can_view_sales_details_report_with_grouping(): void
+    {
+        $this->actingAs($this->admin);
+
+        $response = $this->get('/dashboard/sales-details');
+        $response->assertSuccessful();
+        $response->assertSee('Paket Geprek Original Level 3');
+        $response->assertSee('Kopi Kenangan Mantan R');
+
+        \Livewire\Livewire::test(\App\Filament\Resources\SalesDetails\Pages\ManageSalesDetails::class)
+            ->assertSuccessful()
+            ->assertCanSeeTableRecords(\App\Models\SalesDetail::all());
+    }
+
     public function test_import_sales_page_renders_cleanly(): void
     {
         $this->actingAs($this->admin);

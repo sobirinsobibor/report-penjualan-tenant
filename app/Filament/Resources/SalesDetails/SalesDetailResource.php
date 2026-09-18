@@ -68,11 +68,11 @@ class SalesDetailResource extends Resource
             ->orderBy('kantins.name')
             ->orderBy('tenants.name')
             ->orderByDesc('sales_details.id')
-            ->selectRaw("sales_details.*, (kantins.name || ' → ' || COALESCE(tenants.name, 'Unknown')) as kantin_tenant");
+            ->selectRaw("sales_details.*, CONCAT(kantins.name, ' → ', COALESCE(tenants.name, 'Unknown')) as kantin_tenant");
 
         $user = auth()->user();
         if ($user && !$user->hasAbility('sales.view_all')) {
-            $query->where('tenant_id', $user->tenant_id ?? 0);
+            $query->where('sales_details.tenant_id', $user->tenant_id ?? 0);
         }
 
         return $query;
@@ -92,7 +92,34 @@ class SalesDetailResource extends Resource
             ->groups([
                 Group::make('kantin_tenant')
                     ->label('Group')
-                    ->collapsible(),
+                    ->collapsible()
+                    ->orderQueryUsing(fn (Builder $query, string $direction) => 
+                        $query
+                            ->orderBy('kantins.name', $direction)
+                            ->orderBy('tenants.name', $direction)
+                            ->orderByDesc('sales_details.id')
+                    )
+                    ->scopeQueryUsing(function (Builder $query, SalesDetail $record) {
+                        $kantinId = $record->salesImport?->kantin_id ?? $record->salesImport()->value('kantin_id');
+
+                        return $query
+                            ->when(
+                                $kantinId,
+                                fn (Builder $q) => $q->where('sales_imports.kantin_id', $kantinId)
+                            )
+                            ->when(
+                                $record->tenant_id === null,
+                                fn (Builder $q) => $q->whereNull('sales_details.tenant_id'),
+                                fn (Builder $q) => $q->where('sales_details.tenant_id', $record->tenant_id)
+                            );
+                    })
+                    ->scopeQueryByKeyUsing(function (Builder $query, ?string $key) {
+                        if (blank($key)) {
+                            return $query;
+                        }
+
+                        return $query->whereRaw("CONCAT(kantins.name, ' → ', COALESCE(tenants.name, 'Unknown')) = ?", [$key]);
+                    }),
                 Group::make('salesImport.kantin.name')
                     ->label('Kantin')
                     ->collapsible(),
