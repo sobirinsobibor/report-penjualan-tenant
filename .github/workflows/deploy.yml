@@ -34,7 +34,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             # GANTI 'aplikasi_laravel' DENGAN NAMA FOLDER APLIKASI ANDA
-            cd /home/${{ secrets.SSH_USERNAME }}/aplikasi_laravel
+            cd /home/${{ secrets.SSH_USERNAME }}/domains/development-agt.web.id/public_html/penjualan-tenant
             
             php artisan down
             php artisan optimize:clear
