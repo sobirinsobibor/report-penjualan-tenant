@@ -28,6 +28,8 @@ class DashboardPanelProvider extends PanelProvider
             ->id('dashboard')
             ->path('dashboard')
             ->login()
+            ->sidebarCollapsibleOnDesktop()
+            ->sidebarWidth('250px')
             ->brandName('Reporting Penjualan Tenant')
             ->colors([
                 'primary' => Color::Amber,
