@@ -24,6 +24,7 @@ class DashboardPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
+            ->maxContentWidth('full')
             ->default()
             ->id('dashboard')
             ->path('dashboard')
