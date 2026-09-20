@@ -1,45 +1,45 @@
-name: Deploy Update
-
 on:
   push:
     branches:
       - main
 
+name: 🚀 Deploy website on push
+
 jobs:
-  deploy:
+  web-deploy:
+    name: 🎉 Deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v7
 
-      - name: Sync Files via Rsync
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          # Mengecualikan folder krusial agar tidak ditimpa/dihapus dari server
-          ARGS: "-avzr --delete --exclude='.git/' --exclude='.env' --exclude='storage/' --exclude='vendor/' --exclude='node_modules/'"
-          SOURCE: "./"
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
-          REMOTE_PORT: ${{ secrets.SSH_PORT }}
-          # GANTI 'aplikasi_laravel' DENGAN NAMA FOLDER APLIKASI ANDA DI HOSTING
-          TARGET: "/home/${{ secrets.SSH_USERNAME }}/domains/development-agt.web.id/public_html/penjualan-tenant"
+      - name: 💾 Install PHP dependencies
+        uses: php-actions/composer@v6
+        with:
+          php_version: "8.4"
+          dev: no
+          args: --profile --ignore-platform-reqs
+          command: install
 
-      - name: Run Artisan Optimization via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: 📦 Install Node.js dependencies
+        run: npm install
+
+      - name: 🛠️ Build project
+        run: npm run build
+
+      - name: 📂 Sync files
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            # GANTI 'aplikasi_laravel' DENGAN NAMA FOLDER APLIKASI ANDA
-            cd /home/${{ secrets.SSH_USERNAME }}/domains/development-agt.web.id/public_html/penjualan-tenant
-            
-            /opt/alt/php84/usr/bin/php artisan down
-            /opt/alt/php84/usr/bin/php artisan optimize:clear
-            /opt/alt/php84/usr/bin/php artisan config:cache
-            /opt/alt/php84/usr/bin/php artisan route:cache
-            /opt/alt/php84/usr/bin/php artisan view:cache
-            /opt/alt/php84/usr/bin/php artisan filament:cache-components
-            /opt/alt/php84/usr/bin/php artisan up
+          source: ".,!.git**,!node_modules**,!public/index.php,!DOCKER**,!docker**,!Docker**,!output.log,!.agents,!tests,!skills-lock.json,!README.md,!LICENSE,!.prettierrc,!.editorconfig"
+          target: "/home/${{ secrets.SSH_USERNAME }}/domains/development-agt.web.id/public_html/penjualan-tenant"
+          overwrite: true
+          strip_components: 0
