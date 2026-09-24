@@ -69,14 +69,26 @@ class TenantResource extends Resource
                     ->required()
                     ->maxLength(255),
                 TextInput::make('fee_percentage')
-                    ->label('Fee (%)')
+                    ->label('Bagi Hasil PKS (%)')
                     ->numeric()
-                    ->default(0)
+                    ->default(15.00)
                     ->minValue(0)
                     ->maxValue(100)
                     ->step(0.01)
                     ->suffix('%')
-                    ->helperText('Persentase potongan dari total omzet tenant'),
+                    ->helperText('Persentase potongan bagi hasil dari total omzet tenant'),
+                TextInput::make('target_omzet')
+                    ->label('Target Omzet Bulanan')
+                    ->prefix('Rp')
+                    ->numeric()
+                    ->default(55000000)
+                    ->helperText('Target penjualan bulanan untuk indikator achievement'),
+                TextInput::make('fixed_fee')
+                    ->label('Biaya Operasional Tetap (Fixed Fee)')
+                    ->prefix('Rp')
+                    ->numeric()
+                    ->default(0)
+                    ->helperText('Biaya sewa/kebersihan/listrik dasar per periode'),
             ]);
     }
 
@@ -96,8 +108,13 @@ class TenantResource extends Resource
                     ->badge()
                     ->color('info'),
                 TextColumn::make('fee_percentage')
-                    ->label('Fee')
+                    ->label('Bagi Hasil (%)')
                     ->formatStateUsing(fn ($state) => number_format((float)$state, 2) . '%')
+                    ->sortable()
+                    ->color('warning'),
+                TextColumn::make('target_omzet')
+                    ->label('Target Bulanan')
+                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float)$state, 0, ',', '.'))
                     ->sortable(),
                 TextColumn::make('users_count')
                     ->counts('users')

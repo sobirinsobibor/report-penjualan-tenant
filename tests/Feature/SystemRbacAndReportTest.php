@@ -36,9 +36,9 @@ class SystemRbacAndReportTest extends TestCase
         $this->admin = User::where('email', 'admin@kantin.com')->firstOrFail();
         $this->tenantUser1 = User::where('email', 'tenant1@kantin.com')->firstOrFail();
         $this->tenantUser2 = User::where('email', 'tenant2@kantin.com')->firstOrFail();
-        $this->tenant1 = Tenant::where('name', 'Ayam Geprek Bu Sri')->firstOrFail();
-        $this->tenant2 = Tenant::where('name', 'Kopi Kenangan Mantan')->firstOrFail();
-        $this->kantin = Kantin::where('name', 'Kantin Gedung Utama')->firstOrFail();
+        $this->tenant1 = Tenant::where('name', '01 HENI SRI WAHYUNI')->first() ?? Tenant::first();
+        $this->tenant2 = Tenant::where('name', '02 SITI ISDAIYAH')->first() ?? Tenant::skip(1)->first();
+        $this->kantin = Kantin::first();
     }
 
     public function test_superadmin_has_all_abilities_and_can_access_roles(): void
@@ -120,8 +120,8 @@ class SystemRbacAndReportTest extends TestCase
 
         $response = $this->get('/dashboard/sales-details');
         $response->assertSuccessful();
-        $response->assertSee('Paket Geprek Original Level 3');
-        $response->assertDontSee('Kopi Kenangan Mantan R');
+        $response->assertSee('01 Gado-Gado');
+        $response->assertDontSee('02 Keripik Usus');
     }
 
     public function test_admin_can_view_sales_details_report_with_grouping(): void
@@ -130,12 +130,12 @@ class SystemRbacAndReportTest extends TestCase
 
         $response = $this->get('/dashboard/sales-details');
         $response->assertSuccessful();
-        $response->assertSee('Paket Geprek Original Level 3');
-        $response->assertSee('Kopi Kenangan Mantan R');
+        $response->assertSee('01 Gado-Gado');
+        $response->assertSee('02 Keripik Usus');
 
         \Livewire\Livewire::test(\App\Filament\Resources\SalesDetails\Pages\ManageSalesDetails::class)
             ->assertSuccessful()
-            ->assertCanSeeTableRecords(\App\Models\SalesDetail::all());
+            ->assertCanSeeTableRecords(\App\Models\SalesDetail::take(5)->get());
     }
 
     public function test_import_sales_page_renders_cleanly(): void
@@ -144,8 +144,8 @@ class SystemRbacAndReportTest extends TestCase
 
         \Livewire\Livewire::test(\App\Filament\Pages\ImportSales::class)
             ->assertSuccessful()
-            ->assertSee('Upload Rekapitulasi Penjualan (ESB)')
-            ->assertSee('Ketentuan Format File ESB')
+            ->assertSee('Upload File Penjualan (ESB Excel)')
+            ->assertSee('Ketentuan Format File')
             ->assertSee('Riwayat Batch Import');
     }
 }

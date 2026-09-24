@@ -15,10 +15,14 @@ class Tenant extends Model
         'kantin_id',
         'name',
         'fee_percentage',
+        'target_omzet',
+        'fixed_fee',
     ];
 
     protected $casts = [
         'fee_percentage' => 'decimal:2',
+        'target_omzet' => 'decimal:2',
+        'fixed_fee' => 'decimal:2',
     ];
 
     public function kantin(): BelongsTo
@@ -34,5 +38,10 @@ class Tenant extends Model
     public function salesDetails(): HasMany
     {
         return $this->hasMany(SalesDetail::class);
+    }
+
+    public function settlements(): HasMany
+    {
+        return $this->hasMany(Settlement::class);
     }
 }

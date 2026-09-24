@@ -21,6 +21,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use UnitEnum;
 
 class SalesDetailResource extends Resource
@@ -61,18 +62,11 @@ class SalesDetailResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()
-            ->with(['salesImport.kantin', 'tenant'])
-            ->join('sales_imports', 'sales_details.sales_import_id', '=', 'sales_imports.id')
-            ->join('kantins', 'sales_imports.kantin_id', '=', 'kantins.id')
-            ->leftJoin('tenants', 'sales_details.tenant_id', '=', 'tenants.id')
-            ->orderBy('kantins.name')
-            ->orderBy('tenants.name')
-            ->orderByDesc('sales_details.id')
-            ->selectRaw("sales_details.*, CONCAT(kantins.name, ' → ', COALESCE(tenants.name, 'Unknown')) as kantin_tenant");
+            ->with(['salesImport.kantin', 'tenant']);
 
         $user = auth()->user();
         if ($user && !$user->hasAbility('sales.view_all')) {
-            $query->where('sales_details.tenant_id', $user->tenant_id ?? 0);
+            $query->where('tenant_id', $user->tenant_id ?? 0);
         }
 
         return $query;
@@ -90,44 +84,14 @@ class SalesDetailResource extends Resource
 
         return $table
             ->groups([
-                Group::make('kantin_tenant')
-                    ->label('Group')
-                    ->collapsible()
-                    ->orderQueryUsing(fn (Builder $query, string $direction) => 
-                        $query
-                            ->orderBy('kantins.name', $direction)
-                            ->orderBy('tenants.name', $direction)
-                            ->orderByDesc('sales_details.id')
-                    )
-                    ->scopeQueryUsing(function (Builder $query, SalesDetail $record) {
-                        $kantinId = $record->salesImport?->kantin_id ?? $record->salesImport()->value('kantin_id');
-
-                        return $query
-                            ->when(
-                                $kantinId,
-                                fn (Builder $q) => $q->where('sales_imports.kantin_id', $kantinId)
-                            )
-                            ->when(
-                                $record->tenant_id === null,
-                                fn (Builder $q) => $q->whereNull('sales_details.tenant_id'),
-                                fn (Builder $q) => $q->where('sales_details.tenant_id', $record->tenant_id)
-                            );
-                    })
-                    ->scopeQueryByKeyUsing(function (Builder $query, ?string $key) {
-                        if (blank($key)) {
-                            return $query;
-                        }
-
-                        return $query->whereRaw("CONCAT(kantins.name, ' → ', COALESCE(tenants.name, 'Unknown')) = ?", [$key]);
-                    }),
+                Group::make('tenant.name')
+                    ->label('Tenant (Kategori)')
+                    ->collapsible(),
                 Group::make('salesImport.kantin.name')
                     ->label('Kantin')
                     ->collapsible(),
-                Group::make('tenant.name')
-                    ->label('Tenant')
-                    ->collapsible(),
             ])
-            ->defaultGroup('kantin_tenant')
+            ->defaultGroup($canViewAll ? 'tenant.name' : null)
             ->columns([
                 TextColumn::make('salesImport.kantin.name')
                     ->label('Kantin')
@@ -136,20 +100,21 @@ class SalesDetailResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->visible($canViewAll),
-                TextColumn::make('salesImport.period_raw')
-                    ->label('Periode')
-                    ->searchable()
-                    ->sortable(),
                 TextColumn::make('tenant.name')
                     ->label('Tenant (Kategori)')
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
                     ->visible($canViewAll),
+                TextColumn::make('salesImport.period_raw')
+                    ->label('Periode')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('item_name')
                     ->label('Menu / Item')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('semibold'),
                 TextColumn::make('qty')
                     ->label('Qty Terjual')
                     ->numeric(decimalPlaces: 0)
@@ -178,6 +143,7 @@ class SalesDetailResource extends Resource
                     ->alignEnd()
                     ->sortable()
                     ->weight('bold')
+                    ->color('success')
                     ->summarize(
                         Sum::make()
                             ->label('Total Omzet')
@@ -215,7 +181,7 @@ class SalesDetailResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('kantin_id')
-                    ->label('Filter Kantin')
+                    ->label('1. Pilih Kantin')
                     ->options(fn () => Kantin::pluck('name', 'id')->toArray())
                     ->query(function (Builder $query, array $data) {
                         if (!empty($data['value'])) {

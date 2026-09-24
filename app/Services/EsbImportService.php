@@ -105,9 +105,18 @@ class EsbImportService
                     }
 
                     $qty = $columnMap['qty'] !== null ? $this->parseNumber($cells[$columnMap['qty']] ?? 0) : 1;
-                    $gross = $columnMap['gross'] !== null ? $this->parseNumber($cells[$columnMap['gross']] ?? 0) : 0;
+                    $unitPrice = isset($columnMap['unit_price']) && $columnMap['unit_price'] !== null ? $this->parseNumber($cells[$columnMap['unit_price']] ?? 0) : 0;
+                    $gross = $columnMap['gross'] !== null ? $this->parseNumber($cells[$columnMap['gross']] ?? 0) : ($unitPrice * $qty);
                     $discount = $columnMap['discount'] !== null ? $this->parseNumber($cells[$columnMap['discount']] ?? 0) : 0;
-                    $grandTotal = $columnMap['grand_total'] !== null ? $this->parseNumber($cells[$columnMap['grand_total']] ?? 0) : ($gross - $discount);
+                    $grandTotal = $columnMap['grand_total'] !== null ? $this->parseNumber($cells[$columnMap['grand_total']] ?? 0) : 0;
+
+                    if ($gross == 0 && $unitPrice > 0 && $qty > 0) {
+                        $gross = $unitPrice * $qty;
+                    }
+
+                    if ($grandTotal == 0 && $gross > 0) {
+                        $grandTotal = max(0, $gross - $discount);
+                    }
 
                     $dataRows[] = [
                         'category' => $category,
@@ -191,9 +200,16 @@ class EsbImportService
             foreach ($dataRows as $row) {
                 $catName = $row['category'];
                 if (!isset($existingTenants[$catName])) {
+                    // Check if tenant with same name exists anywhere to inherit fee & target
+                    $sameNameTenant = Tenant::where('name', $catName)->where('fee_percentage', '>', 0)->first();
+                    $fee = $sameNameTenant ? (float)$sameNameTenant->fee_percentage : 15.00;
+                    $target = $sameNameTenant ? (float)$sameNameTenant->target_omzet : 55000000;
+
                     $tenant = Tenant::create([
                         'kantin_id' => $kantin->id,
                         'name' => $catName,
+                        'fee_percentage' => $fee,
+                        'target_omzet' => $target,
                     ]);
                     $existingTenants[$catName] = $tenant->id;
                     $newTenantsCount++;
@@ -241,6 +257,7 @@ class EsbImportService
             'category' => null,
             'item' => null,
             'qty' => null,
+            'unit_price' => null,
             'gross' => null,
             'discount' => null,
             'grand_total' => null,
@@ -249,18 +266,47 @@ class EsbImportService
         foreach ($cells as $index => $raw) {
             $header = trim(strtolower((string)$raw));
 
-            if (preg_match('/(?:menu\s*category|category|tenant|kategori)/i', $header)) {
+            if (empty($header)) {
+                continue;
+            }
+
+            if ($map['category'] === null && preg_match('/^(?:menu\s*category|category|tenant|kategori)$/i', $header)) {
                 $map['category'] = $index;
-            } elseif (preg_match('/(?:item\s*name|product|menu\s*name|menu|nama\s*item|nama\s*menu)/i', $header)) {
+            } elseif ($map['category'] === null && preg_match('/(?:menu\s*category|category|tenant|kategori)/i', $header)) {
+                $map['category'] = $index;
+            }
+
+            if ($map['item'] === null && !preg_match('/menu\s*category/i', $header) && preg_match('/(?:item\s*name|product|menu\s*name|^menu$|menu\s*short\s*name|nama\s*item|nama\s*menu)/i', $header)) {
                 $map['item'] = $index;
-            } elseif (preg_match('/(?:sales\s*qty|qty|quantity|jumlah)/i', $header)) {
+            }
+
+            if ($map['qty'] === null && preg_match('/^(?:sales\s*qty|qty|quantity|jumlah)$/i', $header)) {
                 $map['qty'] = $index;
-            } elseif (preg_match('/(?:gross\s*sales|sales\s*gross|gross|bruto)/i', $header)) {
+            }
+
+            if ($map['unit_price'] === null && preg_match('/^(?:unit\s*price|harga\s*satuan|price|harga)$/i', $header)) {
+                $map['unit_price'] = $index;
+            }
+
+            if ($map['gross'] === null && preg_match('/^(?:gross\s*sales|subtotal|sales\s*gross|gross|bruto)$/i', $header)) {
                 $map['gross'] = $index;
-            } elseif (preg_match('/(?:discount|diskon|potongan)/i', $header)) {
+            }
+
+            if ($map['discount'] === null && preg_match('/(?:menu\s*discount|bill\s*discount|^discount$|diskon|potongan)/i', $header)) {
                 $map['discount'] = $index;
-            } elseif (preg_match('/(?:grand\s*total|net\s*sales|total|netto)/i', $header)) {
-                $map['grand_total'] = $index;
+            }
+
+            // For grand_total, strictly match grand total, net sales total, net sales, netto, total sales, or total.
+            // Avoid matching 'service charge total', 'tax total', 'vat total'
+            if (preg_match('/^(?:grand\s*total|net\s*sales\s*total|net\s*sales|netto|grandtotal|total\s*sales|^total$)$/i', $header)) {
+                if ($map['grand_total'] === null) {
+                    $map['grand_total'] = $index;
+                } else {
+                    // Prefer explicit 'grand total' over 'net sales total'
+                    if (preg_match('/^(?:grand\s*total|grandtotal)$/i', $header)) {
+                        $map['grand_total'] = $index;
+                    }
+                }
             }
         }
 

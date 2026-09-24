@@ -106,7 +106,7 @@ class User extends Authenticatable implements FilamentUser
         }
 
         if ($this->isTenant()) {
-            return in_array($ability, ['sales.view_own', 'sales_report.view']);
+            return in_array($ability, ['sales.view_own', 'sales_report.view', 'target.view', 'target.update']);
         }
 
         return false;
